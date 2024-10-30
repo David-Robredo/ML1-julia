@@ -1,4 +1,5 @@
 using Flux;
+using Test;
 
 """
 Builds a Flux-based feedforward neural network for classification tasks.

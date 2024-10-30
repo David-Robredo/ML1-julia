@@ -30,7 +30,12 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
     end
 
     # We define the ANN
-    ann = buildClassANN(size(train_inputs, 2), topology, size(train_targets, 2))
+    ann = buildClassANN(
+        size(train_inputs, 2), 
+        topology, 
+        size(train_targets, 2),
+        transferFunctions
+    )
 
     # Setting up the loss funtion to reduce the error
     loss(model, x, y) = (size(y, 1) == 1) ? Flux.Losses.binarycrossentropy(model(x), y) : Flux.Losses.crossentropy(model(x), y)
