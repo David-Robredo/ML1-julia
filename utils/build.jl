@@ -21,6 +21,9 @@ function buildClassANN(
     numOutputs::Int;
     transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology))
 )
+    @assert(numInputs > 0, "The number of input attributes must be positive")
+    @assert(numInputs > 0, "The number of output attributes must be positive")
+
     ann = Chain()
     numInputsLayer = numInputs
 
