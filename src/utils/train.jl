@@ -2,8 +2,6 @@ using Printf;
 using Flux;
 using Statistics;
 
-include("holdOut.jl");
-
 function trainClassANN(topology::AbstractArray{<:Int,1},
     trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}};
     validationDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}}=
