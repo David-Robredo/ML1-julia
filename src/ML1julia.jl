@@ -1,6 +1,6 @@
 module ML1julia
     export buildClassANN, trainClassANN, crossvalidation, holdOut, confusionMatrix, 
-            printConfusionMatrix, accuracy, oneHotEncoding
+            printConfusionMatrix, accuracy, oneHotEncoding, normalize, compute_μσ
 
     include("utils/build.jl")
     include("utils/holdOut.jl")
