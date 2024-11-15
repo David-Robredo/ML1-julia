@@ -233,12 +233,3 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
         maxEpochsVal
     )
 end;
-
-function crossvalidation(targets::AbstractArray{<:Any,1}, k::Int64)
-    classes = [targets .== (cls) for cls in unique(targets)]
-    npatterns = size(targets)
-
-    indices = Array{Int64,1}(undef, npatterns)
-    [indices[cls_map] .= crossvalidation(sum(cls_map), k) for cls_map in classes]
-    return indices
-end;
