@@ -4,12 +4,12 @@ using Random
 Splits a dataset of `N` samples into a training and test set, with the test set
 containing `P` proportion of the total samples.
 
-Args:
-    N (Int): Total number of samples in the dataset.
-    P (Real): Proportion of samples to be included in the test set.
+# Arguments
+- `N::Int`: Total number of samples in the dataset.
+- `P::Real`: Proportion of samples to be included in the test set.
 
-Returns:
-    Tuple{Vector{Int}, Vector{Int}}: A tuple containing the indices of the training
+# Returns
+- `Tuple{Vector{Int}, Vector{Int}}`: A tuple containing the indices of the training
     and test sets.
 """
 function holdOut(N::Int, P::Real)
@@ -28,12 +28,12 @@ end
 """
 Splits a dataset into a training and test set.
 
-Args:
-    data (AbstractArray): The data array to be split.
-    P (Real): Proportion of samples to be included in the test set.
+# Arguments
+- `data::AbstractArray`: The data array to be split.
+- `P::Real`: Proportion of samples to be included in the test set.
 
-Returns:
-    Tuple{Vector{Int}, Vector{Int}}: A tuple containing the indices of the training
+# Returns
+- `Tuple{Vector{Int}, Vector{Int}}`: A tuple containing the indices of the training
     and test sets.
 """
 holdOut(data::AbstractArray{<:Any,1}, P::Real) = holdOut(size(data), P)
@@ -41,12 +41,12 @@ holdOut(data::AbstractArray{<:Any,1}, P::Real) = holdOut(size(data), P)
 """
 Splits a dataset of `N` rows into a training and test set.
 
-Args:
-    data (AbstractArray): The data matrix to be split, along the row dimension.
-    P (Real): Proportion of samples to be included in the test set.
+# Arguments
+- `data::AbstractArray`: The data matrix to be split, along the row dimension.
+- `P::Real`: Proportion of samples to be included in the test set.
 
-Returns:
-    Tuple{Vector{Int}, Vector{Int}}: A tuple containing the indices of the training
+# Returns
+- `Tuple{Vector{Int}, Vector{Int}}`: A tuple containing the indices of the training
     and test sets.
 """
 holdOut(data::AbstractArray{<:Any,2}, P::Real) = holdOut(size(data, 1), P)
@@ -56,13 +56,13 @@ Splits a dataset of `N` samples into training, validation, and test sets, with t
 test set containing `Ptest` proportion of the total samples, and the validation set
 containing `Pval` proportion of the remaining samples.
 
-Args:
-    N (Int): Total number of samples in the dataset.
-    Pval (Real): Proportion of the training set to be used as the validation set.
-    Ptest (Real): Proportion of samples to be included in the test set.
+# Arguments
+- `N::Int`:: Total number of samples in the dataset.
+- `Pval::Real`: Proportion of the training set to be used as the validation set.
+- `Ptest::Real`: Proportion of samples to be included in the test set.
 
-Returns:
-    Tuple{Vector{Int}, Vector{Int}, Vector{Int}}: A tuple containing the indices of the
+# Returns
+- `Tuple{Vector{Int}, Vector{Int}, Vector{Int}}`: A tuple containing the indices of the
     training, validation, and test sets.
 """
 function holdOut(N::Int, Pval::Real, Ptest::Real)
@@ -87,13 +87,13 @@ end
 """
 Splits a dataset of into training, validation, and test sets.
 
-Args:
-    data (AbstractArray): The data array to be split.
-    Pval (Real): Proportion of the training set to be used as the validation set.
-    Ptest (Real): Proportion of samples to be included in the test set.
+# Arguments
+- `data::AbstractArray`: The data array to be split.
+- `Pval::Real`: Proportion of the training set to be used as the validation set.
+- `Ptest::Real`: Proportion of samples to be included in the test set.
 
-Returns:
-    Tuple{Vector{Int}, Vector{Int}, Vector{Int}}: A tuple containing the indices of the
+# Returns
+- `Tuple{Vector{Int}, Vector{Int}, Vector{Int}}`: A tuple containing the indices of the
     training, validation, and test sets.
 """
 holdOut(data::AbstractArray{<:Any,1}, Pval::Real, Ptest::Real) = holdOut(size(data), Pval, Ptest)
@@ -101,13 +101,13 @@ holdOut(data::AbstractArray{<:Any,1}, Pval::Real, Ptest::Real) = holdOut(size(da
 """
 Splits a dataset of `N` rows into training, validation, and test sets.
 
-Args:
-    data (AbstractArray): The data matrix to be split, along the row dimension.
-    Pval (Real): Proportion of the training set to be used as the validation set.
-    Ptest (Real): Proportion of samples to be included in the test set.
+# Arguments
+- `data::AbstractArray`: The data matrix to be split, along the row dimension.
+- `Pval::Real`: Proportion of the training set to be used as the validation set.
+- `Ptest::Real`: Proportion of samples to be included in the test set.
 
-Returns:
-    Tuple{Vector{Int}, Vector{Int}, Vector{Int}}: A tuple containing the indices of the
+# Returns
+- `Tuple{Vector{Int}, Vector{Int}, Vector{Int}}`: A tuple containing the indices of the
     training, validation, and test sets.
 """
 holdOut(data::AbstractArray{<:Any,2}, Pval::Real, Ptest::Real) = holdOut(size(data, 1), Pval, Ptest)
