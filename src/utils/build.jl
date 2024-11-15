@@ -67,7 +67,7 @@ end;
     # Check shape of output
     @test size(ann(test_input')) == (3,2)
     # Check that outputs are constrained to sum 1.0 due to softmax
-    @test all(sum(ann(test_input'), dims=1) .== 1.0)
+    @test all(sum(ann(test_input'), dims=1) .≈ 1.0)
 
     # Test with custom transfer functions
     ann = buildClassANN(7, [12, 10], 4; transferFunctions=relu)
