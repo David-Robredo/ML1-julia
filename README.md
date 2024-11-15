@@ -14,6 +14,8 @@ julia> holdOut(5, 0.5)
 ([4,3,2], [1,5])
 ```
 
+Note: to allow recompiling the file, you can use `using Revise` when first starting julia. This module allows automatically compiling the package every time `using ML1julia` is called.
+
 ## Executing tests
 
 Inside the activated environment, you can execute all tests with a call to `test`.
