@@ -1,4 +1,5 @@
-using Statistics
+using Statistics;
+using Test;
 
 """
 Normalize a 2D array along each column dimension using provided mean and 

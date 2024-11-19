@@ -1,6 +1,7 @@
 using Printf;
 using Flux;
 using Statistics;
+using Test;
 
 function trainClassANN(topology::AbstractArray{<:Int,1},
     trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}};

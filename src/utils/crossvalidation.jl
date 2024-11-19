@@ -1,4 +1,5 @@
 using Random;
+using Test;
 
 """
 Generate fold assignments for N items into k folds.

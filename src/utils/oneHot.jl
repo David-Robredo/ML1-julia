@@ -1,3 +1,5 @@
+using Test;
+
 """
 Perform one-hot encoding on a 1D array of data.
 

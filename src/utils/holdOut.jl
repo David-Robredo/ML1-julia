@@ -1,4 +1,5 @@
-using Random
+using Random;
+using Test;
 
 """
 Splits a dataset of `N` samples into a training and test set, with the test set

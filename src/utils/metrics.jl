@@ -1,4 +1,5 @@
 using Statistics;
+using Test;
 
 function confusionMatrix(outputs::AbstractArray{Bool,1}, targets::AbstractArray{Bool,1})
     @assert(size(outputs) == size(targets))
