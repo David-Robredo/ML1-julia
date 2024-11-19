@@ -162,11 +162,13 @@ Compute a comprehensive confusion matrix and related metrics for multi-class cla
     - `:confMatrix`: Confusion matrix
 """
 function confusionMatrix(outputs::AbstractArray{Bool,2}, targets::AbstractArray{Bool,2}; weighted::Bool=true)    
-    @assert(size(outputs, 2) == size(targets, 2),
-        "The number of columns 'outputs' and 'targets' must match.")
-    @assert(size(outputs, 2) != 2,
-        "Two column matrices are invalid in multi-class classification.")
+    @assert(size(outputs, 2) == size(targets, 2), "The number of columns 'outputs' and 'targets' must match.")
     
+    # For the specific case of binary classification, call the other function.
+    if size(outputs, 2) == 2
+        return confusionMatrix(outputs[:,1], targets[:,1])
+    end
+        
     # Initialize metrics
     numClass = size(outputs, 2)
     sensitivity = zeros(Float64, numClass)
