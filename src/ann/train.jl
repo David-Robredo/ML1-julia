@@ -54,7 +54,8 @@ stopping criteria.
     validation dataset
 - `testDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}}=<empty>`: Optional test 
     dataset
-- `transferFunctions::AbstractArray{<:Function,1}=σ`: Transfer functions for each layer
+- `transferFunctions::Union{AbstractArray{<:Function,1}, Function} = σ`: Transfer functions for 
+    each layer, or a single transfer function for all layers.
 - `maxEpochs::Int=1000`: Maximum number of training epochs
 - `minLoss::Real=0.0`: Minimum loss threshold to stop training
 - `learningRate::Real=0.01`: Learning rate for the optimizer
@@ -75,7 +76,7 @@ function trainClassANN(
     (Array{eltype(trainingDataset[1]),2}(undef, 0, 0), falses(0, 0)),
     testDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}}=
     (Array{eltype(trainingDataset[1]),2}(undef, 0, 0), falses(0, 0)),
-    transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)),
+    transferFunctions::Union{AbstractArray{<:Function,1}, Function} = σ,
     maxEpochs::Int=1000, 
     minLoss::Real=0.0, 
     learningRate::Real=0.01,
@@ -222,7 +223,8 @@ stopping criteria.
     validation dataset
 - `testDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}}=<empty>`: Optional test 
     dataset
-- `transferFunctions::AbstractArray{<:Function,1}=σ`: Transfer functions for each layer
+- `transferFunctions::Union{AbstractArray{<:Function,1}, Function} = σ`: Transfer functions for 
+    each layer, or a single transfer function for all layers.
 - `maxEpochs::Int=1000`: Maximum number of training epochs
 - `minLoss::Real=0.0`: Minimum loss threshold to stop training
 - `learningRate::Real=0.01`: Learning rate for the optimizer
@@ -243,7 +245,7 @@ function trainClassANN(
     (Array{eltype(trainingDataset[1]),2}(undef, 0, 0), falses(0)),
     testDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,1}}=
     (Array{eltype(trainingDataset[1]),2}(undef, 0, 0), falses(0)),
-    transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)),
+    transferFunctions::Union{AbstractArray{<:Function,1}, Function} = σ,
     maxEpochs::Int=1000, 
     minLoss::Real=0.0, 
     learningRate::Real=0.01,
@@ -284,76 +286,221 @@ function trainClassANN(
     )
 end;
 
-function trainClassANN(topology::AbstractArray{<:Int,1},
+"""
+Train a Multi-class Classification Artificial Neural Network with k-fold cross-validation.
+
+# Arguments
+- `topology::AbstractArray{<:Int,1}`: Network layer topology defining neurons in each layer
+- `trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}}`: Tuple of 
+    training inputs and targets, where targets are already in two-column format
+- `kFoldIndices::Array{Int64,1}`: Indices defining the k-fold cross-validation splits
+- `transferFunctions::Union{AbstractArray{<:Function,1}, Function} = σ`: Transfer functions for 
+    each layer, defaults to sigmoid activation
+- `maxEpochs::Int=1000`: Maximum number of training epochs
+- `minLoss::Real=0.0`: Minimum loss threshold to stop training
+- `learningRate::Real=0.01`: Learning rate for the optimizer
+- `repetitionsTraining::Int=1`: Number of times to repeat training for each fold
+- `validationRatio::Real=0.0`: Ratio of training data to use for validation
+- `maxEpochsVal::Int=20`: Maximum epochs without improvement before early stopping
+- `verbose::Bool=false`: Flag to print training progress
+- `metric::Symbol=:f1Score`: Metric used for model selection and reporting
+
+# Returns
+- `Tuple{Union{Nothing, Any}, Union{Nothing, Dict}, Dict}`: 
+    - Best trained neural network model across all folds
+    - Best model's metrics 
+    - Summary metrics across all folds (mean, max, min, std)
+"""
+function trainClassANN(
+    topology::AbstractArray{<:Int,1},
     trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}},
     kFoldIndices::Array{Int64,1};
-    transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)),
-    maxEpochs::Int=1000, minLoss::Real=0.0, learningRate::Real=0.01, repetitionsTraining::Int=1,
-    validationRatio::Real=0.0, maxEpochsVal::Int=20)
+    transferFunctions::Union{AbstractArray{<:Function,1}, Function} = σ,
+    maxEpochs::Int=1000, 
+    minLoss::Real=0.0, 
+    learningRate::Real=0.01,
+    repetitionsTraining::Int=1,
+    validationRatio::Real=0.0,
+    maxEpochsVal::Int=20, 
+    verbose::Bool=false,
+    metric::Symbol=:f1Score
+)
 
     (train_inputs, train_targets) = trainingDataset
 
     # Metric results (train loss, validation loss, and test loss) for each of the k folds.
-    k_folds = maximum(kFoldIndices)
-    metric_results = Array{Float64,2}(undef, k_folds, 3)
+    fold_results = Vector{Dict{Symbol, Any}}()
+    
+    # Overall best model across all folds.
+    best_overall_model = nothing
+    best_overall_metrics = nothing
+    best_overall_score = -Inf
 
+    k_folds = maximum(kFoldIndices)
     for k in 1:k_folds
         # Get the inputs and targets specific for this k-fold.
         k_test_mask = kFoldIndices .== k
         k_test_inputs = train_inputs[k_test_mask, :]
         k_test_targets = train_targets[k_test_mask, :]
 
-        # Get validation and train sets for this k-fold.
-        # TODO Adjust validationRation
-        # TODO only do this if validationRatio
-        train_indices, val_indices = holdOut(sum(.!k_test_mask), validationRatio)
-        k_train_inputs = train_inputs[.!k_test_mask, :][train_indices, :]
-        k_train_targets = train_targets[.!k_test_mask, :][train_indices, :]
-        k_val_inputs = train_inputs[.!k_test_mask, :][val_indices, :]
-        k_val_targets = train_targets[.!k_test_mask, :][val_indices, :]
+        # Prepare train-set for this k-fold.
+        k_train_inputs = train_inputs[.!k_test_mask, :]
+        k_train_targets = train_targets[.!k_test_mask, :]
 
-        averageTrainLoss = 0
-        averageValLoss = 0
-        averageTestLoss = 0
+        # Separate train-set into validation set if needed.
+        # TODO Adjust validationRation based on total size of dataset.  
+        if validationRatio > 0.0
+            # Use holdOut function to split train data into train and validation
+            train_indices, val_indices = holdOut(sum(.!k_test_mask), validationRatio)
+            k_val_inputs = k_train_inputs[val_indices, :]
+            k_val_targets = k_train_targets[val_indices, :]
+            k_train_inputs = k_train_inputs[train_indices, :]
+            k_train_targets = k_train_targets[train_indices, :]
+        else
+            k_val_inputs = []
+            k_val_targets = []
+        end
+
+        # Track best model and metrics for this fold across all repetitions.
+        fold_best_model = nothing
+        fold_best_metrics = nothing
+        fold_best_score = -Inf
+
         for rep in 1:repetitionsTraining
-            ann, trainLosses, valLosses, testLosses = trainClassANN(topology,
-                (k_train_inputs, k_train_targets),
+            ann, metrics = trainClassANN(
+                topology,
+                (k_train_inputs, k_train_targets);
                 validationDataset=(k_val_inputs, k_val_targets),
                 testDataset=(k_test_inputs, k_test_targets),
                 transferFunctions=transferFunctions,
                 maxEpochs=maxEpochs,
                 minLoss=minLoss,
                 learningRate=learningRate,
-                maxEpochsVal=maxEpochsVal)
+                maxEpochsVal=maxEpochsVal
+            )
 
-            @printf("Fold %d, repetition %d. \t train loss: %.4f, val loss: %.4f, test loss: %.4f\n",
-                k, rep,
-                trainLosses[end],
-                valLosses[end],
-                testLosses[end])
+            # Report training, validation and test metrics.
+            if verbose
+                @printf("Fold %d, Repetition %d - Train - Loss: %.4f, Metric: %.4f\n", 
+                    k, rep,
+                    metrics[:training][end][:loss], 
+                    metrics[:training][end][metric])
+                
+                if !isempty(k_val_inputs)
+                    @printf("Fold %d, Repetition %d - Validation - Loss: %.4f, Metric: %.4f\n", 
+                        k, rep,
+                        metrics[:validation][end][:loss], 
+                        metrics[:validation][end][metric])
+                end
+                
+                if !isempty(k_test_inputs)
+                    @printf("Fold %d, Repetition %d - Test - Loss: %.4f, Metric: %.4f\n", 
+                        k, rep,
+                        metrics[:test][end][:loss], 
+                        metrics[:test][end][metric])
+                end
+            end
 
-            averageTrainLoss += !isempty(trainLosses) ? trainLosses[end] : 0
-            averageValLoss += !isempty(valLosses) ? valLosses[end] : 0
-            averageTestLoss += !isempty(testLosses) ? testLosses[end] : 0
+            # If using validation sets, pick the best model across the folds based on
+            # the given metric over the validation set. Otherwise, use the train set.
+            scoring_set = validationRatio > 0.0 ? :validation : :train
+            # Update best model for this fold 
+            if metrics[scoring_set][end][metric] > fold_best_score
+                fold_best_model = ann
+                fold_best_metrics = metrics
+                fold_best_score = metrics[scoring_set][end][metric]
+            end
+
         end
 
-        metric_results[k, 1] = averageTrainLoss / repetitionsTraining
-        metric_results[k, 2] = averageValLoss / repetitionsTraining
-        metric_results[k, 3] = averageTestLoss / repetitionsTraining
+        # Copy all metrics for all subsets at the final iteration
+        fold_result = Dict()
+        for subset in [:training, :validation, :test]
+            # Only add subset if it's not empty
+            if haskey(fold_best_metrics, subset) && !isempty(fold_best_metrics[subset])
+                # Take the metrics from the last iteration
+                fold_result[subset] = fold_best_metrics[subset][end]
+            end
+        end
+        push!(fold_results, fold_result)
+
+        # Update overall best model
+        if fold_best_metrics[:test][end][metric] > best_overall_score
+            best_overall_model = fold_best_model
+            best_overall_metrics = fold_best_metrics
+            best_overall_score = fold_best_metrics[:test][end][metric]
+        end
     end
 
-    average_metrics = mean(metric_results, dims=1)
-    std_dev_metrics = std(metric_results, dims=1)
+    # Initialize resume_metrics of all folds
+    resume_metrics = Dict()
+    # Go through each subset (training, validation, test)
+    for subset in [:training, :validation, :test]
+        # Skip if no fold results for this subset
+        subset_results = [fold[subset] for fold in fold_results if haskey(fold, subset)]
+        if !isempty(subset_results)
+            # Initialize metrics for this subset
+            resume_metrics[subset] = Dict()
+            
+            # Compute mean, max, min for each metric
+            for metric in keys(subset_results[1])
+                # Collect all values for this metric across folds
+                metric_values = [result[metric] for result in subset_results]
+                
+                resume_metrics[subset][metric] = Dict(
+                    :mean => mean(metric_values),
+                    :max => maximum(metric_values),
+                    :min => minimum(metric_values),
+                    :std => std(metric_values)
+                )
+            end
+        end
+    end
 
-    return average_metrics, std_dev_metrics
+    return best_overall_model, best_overall_metrics, resume_metrics
 end;
 
-function trainClassANN(topology::AbstractArray{<:Int,1},
+"""
+Train a Binary Classification Artificial Neural Network with k-fold cross-validation for 
+a dataset with boolean targets represented as a 1D array.
+
+# Arguments
+- `topology::AbstractArray{<:Int,1}`: Network layer topology defining neurons in each layer
+- `trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,1}}`: Tuple of 
+    training inputs and targets
+- `kFoldIndices::Array{Int64,1}`: Indices defining the k-fold cross-validation splits
+- `transferFunctions::Union{AbstractArray{<:Function,1}, Function} = σ`: Transfer functions for 
+    each layer, defaults to sigmoid activation
+- `maxEpochs::Int=1000`: Maximum number of training epochs
+- `minLoss::Real=0.0`: Minimum loss threshold to stop training
+- `learningRate::Real=0.01`: Learning rate for the optimizer
+- `repetitionsTraining::Int=1`: Number of times to repeat training for each fold
+- `validationRatio::Real=0.0`: Ratio of training data to use for validation
+- `maxEpochsVal::Int=20`: Maximum epochs without improvement before early stopping
+- `verbose::Bool=false`: Flag to print training progress
+- `metric::Symbol=:f1Score`: Metric used for model selection and reporting
+
+# Returns
+- `Tuple{Union{Nothing, Any}, Union{Nothing, Dict}, Dict}`: 
+    - Best trained neural network model across all folds
+    - Best model's metrics 
+    - Summary metrics across all folds (mean, max, min, std)
+"""
+function trainClassANN(
+    topology::AbstractArray{<:Int,1},
     trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,1}},
     kFoldIndices::Array{Int64,1};
     transferFunctions::AbstractArray{<:Function,1}=fill(σ, length(topology)),
-    maxEpochs::Int=1000, minLoss::Real=0.0, learningRate::Real=0.01, repetitionsTraining::Int=1,
-    validationRatio::Real=0.0, maxEpochsVal::Int=20)
+    maxEpochs::Int=1000, 
+    minLoss::Real=0.0, 
+    learningRate::Real=0.01, 
+    repetitionsTraining::Int=1,
+    validationRatio::Real=0.0, 
+    maxEpochsVal::Int=20,
+    verbose::Bool=false,
+    metric::Symbol=:f1Score
+)
+    
     (train_inputs, train_targets) = trainingDataset
 
     train_targets = hcat(
@@ -363,7 +510,7 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
 
     return trainClassANN(
         topology,
-        (train_inputs, train_targets),
+        (train_inputs, train_targets);
         kFoldIndices,
         transferFunctions,
         maxEpochs,
@@ -371,6 +518,8 @@ function trainClassANN(topology::AbstractArray{<:Int,1},
         learningRate,
         repetitionsTraining,
         validationRatio,
-        maxEpochsVal
+        maxEpochsVal,
+        verbose,
+        metric
     )
 end;
