@@ -8,8 +8,8 @@ module ML1julia
     include("utils/normalization.jl")
     include("utils/oneHot.jl")
     include("utils/crossvalidation.jl")
-    include("ann/train.jl")
     include("ann/build.jl")
+    include("ann/train.jl")
     include("scikit/ensemble.jl")
     include("scikit/train.jl")
 end

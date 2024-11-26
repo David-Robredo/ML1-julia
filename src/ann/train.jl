@@ -357,8 +357,8 @@ function trainClassANN(
             k_train_inputs = k_train_inputs[train_indices, :]
             k_train_targets = k_train_targets[train_indices, :]
         else
-            k_val_inputs = []
-            k_val_targets = []
+            k_val_inputs = Array{Float32}(undef, 0, 0)
+            k_val_targets = falses(0, 0)
         end
 
         # Track best model and metrics for this fold across all repetitions.
@@ -403,7 +403,7 @@ function trainClassANN(
 
             # If using validation sets, pick the best model across the folds based on
             # the given metric over the validation set. Otherwise, use the train set.
-            scoring_set = validationRatio > 0.0 ? :validation : :train
+            scoring_set = validationRatio > 0.0 ? :validation : :training
             # Update best model for this fold 
             if metrics[scoring_set][end][metric] > fold_best_score
                 fold_best_model = ann
@@ -446,13 +446,15 @@ function trainClassANN(
             for metric in keys(subset_results[1])
                 # Collect all values for this metric across folds
                 metric_values = [result[metric] for result in subset_results]
-                
-                resume_metrics[subset][metric] = Dict(
-                    :mean => mean(metric_values),
-                    :max => maximum(metric_values),
-                    :min => minimum(metric_values),
-                    :std => std(metric_values)
-                )
+                # Compute mean, maximum, etc only if the metrics are numbers.
+                if all(x -> isa(x, Real), metric_values)
+                    resume_metrics[subset][metric] = Dict(
+                        :mean => mean(metric_values),
+                        :max => maximum(metric_values),
+                        :min => minimum(metric_values),
+                        :std => std(metric_values)
+                    )
+                end
             end
         end
     end
@@ -510,8 +512,8 @@ function trainClassANN(
 
     return trainClassANN(
         topology,
-        (train_inputs, train_targets);
-        kFoldIndices,
+        (train_inputs, train_targets),
+        kFoldIndices;
         transferFunctions,
         maxEpochs,
         minLoss,
@@ -523,3 +525,93 @@ function trainClassANN(
         metric
     )
 end;
+
+@testset "trainClassANN" begin
+    # Set seed for repetibility
+    Random.seed!(42)
+    
+    n_samples = 200  # Total number of samples
+    n_features = 4    # Number of input features
+
+    # Generate dummy dataset. The target is based on 
+    # whether the first column is greater than 0.5
+    input_data  = rand(Float32, n_samples, n_features + 1)    
+    output_data = vec(input_data[:, 1] .> 0.5)
+
+    # Split the inputs and targets
+    train_idx, test_idx = holdOut(size(input_data, 1), 0.1)
+
+    train_input  = input_data[train_idx, :]
+    train_output = output_data[train_idx]
+
+    test_input  = input_data[test_idx, :]
+    test_output = output_data[test_idx]
+
+    # Calculate normalization parameters (mean and std) from training inputs
+    μ, σ = compute_μσ(train_input)
+    # Normalize the data
+    train_input = normalize(train_input, μ, σ)
+    test_input  = normalize(test_input, μ, σ)
+
+    # Small test topology
+    topology = [3]
+
+    # Train the small topology. The results should be
+    # at least moderately good, or at least sligtly
+    # better than random chance.
+    bestAnn, metrics = trainClassANN(
+        topology,
+        (train_input, train_output);
+        testDataset = (test_input, test_output),
+        maxEpochs = 100, 
+        learningRate = 0.01,
+    )
+    @test metrics[:test][end][:accuracy] > 0.6
+    @test metrics[:test][end][:errorRate] < 0.4
+    @test metrics[:test][end][:recall] > 0.6
+    @test metrics[:test][end][:specificity] > 0.6
+    @test metrics[:test][end][:posPredValue] > 0.6
+    @test metrics[:test][end][:negPredValue] > 0.6
+    @test metrics[:test][end][:f1Score] > 0.6
+    
+end
+
+@testset "trainClassANN crossvalidation" begin
+    # Set seed for repetibility
+    Random.seed!(42)
+    
+    n_samples = 200  # Total number of samples
+    n_features = 4    # Number of input features
+
+    # Generate dummy dataset. The target is based on 
+    # whether the first column is greater than 0.5
+    train_input  = rand(Float32, n_samples, n_features + 1)    
+    train_output = vec(train_input[:, 1] .> 0.5)
+
+    # Create indices for kfolds
+    crossvalidation_indices = crossvalidation(train_output, 10)
+
+    # Small test topology
+    topology = [3]
+
+    # Train the small topology. The results should be
+    # at least moderately good, or at least sligtly
+    # better than random chance.
+    bestAnn, bestAnnMetrics, metrics = trainClassANN(
+        topology,
+        (train_input, train_output),
+        crossvalidation_indices;
+        validationRatio = 0.2,
+        maxEpochs = 100, 
+        learningRate = 0.01,
+        metric = :f1Score
+    )
+    @test metrics[:test][:accuracy][:mean] > 0.6
+    @test metrics[:test][:errorRate][:mean] < 0.4
+    @test metrics[:test][:recall][:mean] > 0.6
+    @test metrics[:test][:specificity][:mean] > 0.6
+    @test metrics[:test][:posPredValue][:mean] > 0.6
+    @test metrics[:test][:negPredValue][:mean] > 0.6
+    @test metrics[:test][:f1Score][:mean] > 0.6
+    
+end
