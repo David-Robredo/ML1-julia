@@ -10,6 +10,6 @@ module ML1julia
     include("utils/crossvalidation.jl")
     include("ann/build.jl")
     include("ann/train.jl")
-    include("scikit/ensemble.jl")
     include("scikit/train.jl")
+    include("scikit/ensemble.jl")
 end

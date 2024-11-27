@@ -16,6 +16,12 @@ Pkg.add(path="./ML1-julia");
 using ML1julia;
 ```
 
+Note that to compile with the ScikitLearn package one needs to have instaled `ScikitLearn` in its python environment:
+
+```
+pip install scikit-learn
+```
+
 # Using in REPL
 
 For development, inside the REPL you can press `]` and call `activate .` to activate the project defined in the folder we are on. You can use `precompile` to force the compilation of the dependencies and the package, though it will be precompiled later if you use it.
