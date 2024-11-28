@@ -2,6 +2,7 @@ using DataFrames
 using Statistics
 using Printf
 using Plots
+using StatsPlots
 
 function dataset_to_matrix(
     df::DataFrame, 
@@ -125,6 +126,32 @@ function plot_heatmap(df::DataFrame, target_variable::Symbol)
         xrotation = 45,
         yticks = (1:length(features), features)
     )
+end
+
+function plot_boxplots(df::DataFrame; kwargs...)
+    # Make boxplots only on numeric columns.
+    numeric_cols = names(df, eltype.(eachcol(df)) .<: Number)
+    
+    if isempty(numeric_cols)
+        error("No numeric columns found in the DataFrame.")
+    end
+    
+    p = plot(
+        layout=(1, length(numeric_cols)), 
+        size=(200*length(numeric_cols), 400)
+    )
+    
+    for (i, col) in enumerate(numeric_cols)
+        boxplot!(
+            df[!, col], 
+            xlabel=string(col),
+            subplot=i, 
+            legend=false,
+            kwargs...
+        )
+    end
+    
+    return p
 end
 
 @testset "dataset_to_matrix" begin
