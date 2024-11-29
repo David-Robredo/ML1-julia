@@ -13,7 +13,7 @@ Compute metrics for a ScikitLearn model using confusion matrix.
 # Arguments
 - `model::PyCall.PyObject`: A trained scikit-learn or compatible machine learning model
 - `inputs::AbstractArray{<:Real,2}`: Input feature matrix with observations as rows
-- `targets::AbstractArray{<:Any,1}`: True target labels for the input data
+- `targets::AbstractArray{Bool,2}`: True target labels for the input data
 
 # Returns
 - `Dict{Symbol, Any}`: Dictionary containing confusion matrix metrics, including metrics such 
@@ -22,7 +22,7 @@ Compute metrics for a ScikitLearn model using confusion matrix.
 function confusionMatrix(
     model::PyCall.PyObject, 
     inputs::AbstractArray{<:Real,2}, 
-    targets::AbstractArray{<:Any,1},
+    targets::AbstractArray{Bool,2},
 )
     # Compute model predictions
     predictions = predict(model, inputs)
@@ -87,12 +87,14 @@ function createScikitLearnModel(
 end
 
 """
-Perform cross-validation for a machine learning model with multiple potential strategies.
+Perform Multi-Class Classification Cross-Validation for a machine learning model with 
+multiple potential model-types.
 
 # Arguments
 - `modelType::Symbol`: Type of model to train (e.g., :MLP, :SVM, :DecisionTree, :kNN, :ANN)
 - `modelHyperparameters::Dict`: Dictionary of hyperparameters for model configuration
-- `trainingDataset::Tuple`: Tuple containing input features and corresponding target labels
+- `trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,2}}`: Tuple containing 
+    input features and corresponding target labels.
 - `crossValidationIndices::Array{Int64,1}`: Indices defining the cross-validation folds
 - `verbose::Bool=false`: If true, print detailed information during cross-validation
 - `metric::Symbol=:f1Score`: Metric to use for model selection and evaluation
@@ -106,7 +108,7 @@ Perform cross-validation for a machine learning model with multiple potential st
 function modelCrossValidation(
     modelType::Symbol,
     modelHyperparameters::Dict,
-    trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{<:Any,1}},
+    trainingDataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
     crossValidationIndices::Array{Int64,1};
     verbose::Bool=false,
     metric::Symbol=:f1Score
@@ -117,9 +119,6 @@ function modelCrossValidation(
     # Check if the model type is an ANN. If it is, call our own trainClassANN
     # directly instead of performing the k-fold cross-validation manually.
     if modelType == :ANN 
-        # One hot encode targets
-        encoded_targets = oneHotEncoding(train_targets)
-
         # Train ANN model with our own training function with Flux
         return return trainClassANN(
             modelHyperparameters[:topology],
@@ -149,11 +148,11 @@ function modelCrossValidation(
         # Get the inputs and targets specific for this k-fold.
         k_test_mask = crossValidationIndices .== k
         k_test_inputs = train_inputs[k_test_mask, :]
-        k_test_targets = train_targets[k_test_mask]
+        k_test_targets = train_targets[k_test_mask, :]
 
         # Prepare train-set for this k-fold.
         k_train_inputs = train_inputs[.!k_test_mask, :]
-        k_train_targets = train_targets[.!k_test_mask]
+        k_train_targets = train_targets[.!k_test_mask, :]
 
         # Create appropriate model based on modelType
         model = createScikitLearnModel(modelType, modelHyperparameters)
@@ -220,6 +219,50 @@ function modelCrossValidation(
     end
 
     return best_overall_model, best_overall_metrics, resume_metrics
+end
+
+"""
+Perform Binary Classification Cross-Validation for a machine learning model with 
+multiple potential model-types.
+
+# Arguments
+- `modelType::Symbol`: Type of model to train (e.g., :MLP, :SVM, :DecisionTree, :kNN, :ANN)
+- `modelHyperparameters::Dict`: Dictionary of hyperparameters for model configuration
+- `trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,1}}`: Tuple containing 
+    input features and corresponding target labels
+- `crossValidationIndices::Array{Int64,1}`: Indices defining the cross-validation folds
+- `verbose::Bool=false`: If true, print detailed information during cross-validation
+- `metric::Symbol=:f1Score`: Metric to use for model selection and evaluation
+
+# Returns
+- `Tuple{Union{Nothing, Any}, Union{Nothing, Dict}, Dict}`: 
+    - Best trained neural network model across all folds
+    - Best model's metrics 
+    - Summary metrics across all folds (mean, max, min, std)
+"""
+function modelCrossValidation(
+    modelType::Symbol,
+    modelHyperparameters::Dict,
+    trainingDataset::Tuple{AbstractArray{<:Real,2},AbstractArray{Bool,1}},
+    crossValidationIndices::Array{Int64,1};
+    verbose::Bool=false,
+    metric::Symbol=:f1Score
+)
+    (train_inputs, train_targets) = trainingDataset
+
+    train_targets = hcat(
+        train_targets,   # First column for true values
+        .!train_targets  # Second column for false values
+    )
+
+    return modelCrossValidation(
+        modelType,
+        modelHyperparameters,
+        (train_inputs, train_targets),
+        crossValidationIndices;
+        verbose,
+        metric
+    )
 end
 
 @testset "modelCrossValidation" begin
