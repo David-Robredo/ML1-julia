@@ -2,7 +2,7 @@ module ML1julia
     export buildClassANN, trainClassANN, crossvalidation, holdOut, confusionMatrix, 
             printConfusionMatrix, accuracy, oneHotEncoding, normalize, compute_μσ,
             crossvalidation, dataset_to_matrix, value_counts, plot_value_counts,
-            count_nulls, plot_null_counts, plot_heatmap
+            count_nulls, plot_null_counts, plot_heatmap, modelCrossValidation
 
     include("utils/holdOut.jl")
     include("utils/metrics.jl")
